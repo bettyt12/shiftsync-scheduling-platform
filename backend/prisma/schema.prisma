@@ -1,15 +1,268 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum ShiftStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  CANCELLED
+}
+
+enum RequestType {
+  SWAP
+  DROP
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED_BY_PEER
+  PENDING_MANAGER
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum AvailabilityKind {
+  RECURRING
+  EXCEPTION
+}
+
+enum AvailabilityExceptionType {
+  ADD_AVAILABLE
+  REMOVE_AVAILABLE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL_SIMULATED
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+model User {
+  id                  String @id @default(cuid())
+  email               String @unique
+  passwordHash        String
+  name                String
+  role                Role
+  desiredHoursPerWeek Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  locations    UserLocation[]
+  skills       UserSkill[]
+  availability Availability[]
+  assignments  ShiftAssignment[]
+
+  notificationPrefs UserNotificationPreference[]
+  notifications     Notification[]
+  auditEvents       AuditLog[]                   @relation("AuditActor")
+
+  coverageRequestsFrom    CoverageRequest[] @relation("CoverageFromUser")
+  coverageRequestsTo      CoverageRequest[] @relation("ToUser")
+  coverageRequestsClaimed CoverageRequest[] @relation("ClaimedBy")
+}
+
+model Location {
+  id       String @id @default(cuid())
+  name     String
+  timezone String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  UserLocation[]
+  shifts Shift[]
+}
+
+model Skill {
+  id   String @id @default(cuid())
+  name String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  UserSkill[]
+  shifts Shift[]
+}
+
+model UserLocation {
+  id         String  @id @default(cuid())
+  userId     String
+  locationId String
+  isManager  Boolean @default(false)
+
+  user     User     @relation(fields: [userId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([userId, locationId])
+  @@index([locationId, isManager])
+}
+
+model UserSkill {
+  id      String @id @default(cuid())
+  userId  String
+  skillId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+}
+
+model Availability {
+  id     String           @id @default(cuid())
+  userId String
+  kind   AvailabilityKind
+
+  // RECURRING: dayOfWeek 0=Sun ... 6=Sat, in the provided timezone
+  dayOfWeek   Int?
+  startMinute Int?
+  endMinute   Int?
+  timezone    String
+
+  // EXCEPTION: specific UTC window, + whether it adds/removes availability
+  exceptionType AvailabilityExceptionType?
+  startTimeUtc  DateTime?
+  endTimeUtc    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, kind])
+}
+
+model Shift {
+  id              String      @id @default(cuid())
+  locationId      String
+  requiredSkillId String
+  startTimeUtc    DateTime
+  endTimeUtc      DateTime
+  headcount       Int
+  status          ShiftStatus @default(DRAFT)
+  weekStartUtc    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  location      Location          @relation(fields: [locationId], references: [id])
+  requiredSkill Skill             @relation(fields: [requiredSkillId], references: [id])
+  assignments   ShiftAssignment[]
+  requests      CoverageRequest[]
+
+  @@index([locationId, startTimeUtc])
+  @@index([status])
+}
+
+model ShiftAssignment {
+  id      String           @id @default(cuid())
+  shiftId String
+  userId  String
+  status  AssignmentStatus @default(ASSIGNED)
+
+  clockInTimeUtc  DateTime?
+  clockOutTimeUtc DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shift Shift @relation(fields: [shiftId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([shiftId, userId])
+  @@index([userId])
+}
+
+model CoverageRequest {
+  id     String        @id @default(cuid())
+  type   RequestType
+  status RequestStatus @default(PENDING)
+
+  shiftId         String
+  fromUserId      String
+  toUserId        String?
+  claimedByUserId String?
+
+  expiresAtUtc DateTime?
+
+  managerOverrideReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shift         Shift @relation(fields: [shiftId], references: [id])
+  fromUser      User  @relation("CoverageFromUser", fields: [fromUserId], references: [id])
+  toUser        User? @relation("ToUser", fields: [toUserId], references: [id])
+  claimedByUser User? @relation("ClaimedBy", fields: [claimedByUserId], references: [id])
+
+  @@index([shiftId, status])
+  @@index([fromUserId, status])
+}
+
+model UserNotificationPreference {
+  id      String              @id @default(cuid())
+  userId  String
+  channel NotificationChannel
+  enabled Boolean             @default(true)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, channel])
+}
+
+model Notification {
+  id      String             @id @default(cuid())
+  userId  String
+  type    String
+  status  NotificationStatus @default(UNREAD)
+  payload Json
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+}
+
+model AuditLog {
+  id          String  @id @default(cuid())
+  actorUserId String?
+  entityType  String
+  entityId    String
+  action      String
+  before      Json?
+  after       Json?
+  reason      String?
+
+  createdAt DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
