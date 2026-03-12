@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useToast } from '../context/ToastContext.jsx';
 import { useCoverageRequests, useAcceptCoverage, useApproveCoverage } from '../hooks/useCoverage';
 import { useAuth } from '../context/AuthContext';
@@ -12,17 +12,23 @@ const Coverage = () => {
   const { data: requests, isLoading } = useCoverageRequests();
   const acceptMutation = useAcceptCoverage();
   const approveMutation = useApproveCoverage();
+  const [confirmState, setConfirmState] = useState({ isOpen: false, message: '', onConfirm: null });
   const { addToast } = useToast();
 
   const handleAccept = async (id) => {
-    if (window.confirm('Are you sure you want to claim this shift?')) {
-      try {
-        await acceptMutation.mutateAsync(id);
-        addToast('Shift claimed successfully! Awaiting manager approval.', 'success');
-      } catch (err) {
-        addToast(err.response?.data?.message || 'Failed to claim shift', 'error');
+    setConfirmState({
+      isOpen: true,
+      message: 'Are you sure you want to claim this shift?',
+      onConfirm: async () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+        try {
+          await acceptMutation.mutateAsync(id);
+          addToast('Shift claimed successfully! Awaiting manager approval.', 'success');
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Failed to claim shift', 'error');
+        }
       }
-    }
+    });
   };
 
   const handleApprove = async (id) => {
@@ -110,6 +116,12 @@ const Coverage = () => {
           ))
         )}
       </div>
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

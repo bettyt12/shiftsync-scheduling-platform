@@ -262,6 +262,18 @@ html {
   }
 }
 
+/* confirm dialog styling */
+.confirm-dialog-body {
+  padding: 1rem 0;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 
 .loading-screen {
   display: flex;

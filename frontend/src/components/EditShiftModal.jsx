@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { format, parseISO } from 'date-fns';
 import Badge from './Badge';
 import { UserPlus, UserMinus, AlertTriangle, CheckCircle } from 'lucide-react';
+import ConfirmDialog from './ConfirmDialog';
 
 const EditShiftModal = ({ isOpen, onClose, shift }) => {
   const updateShift = useUpdateShift();
@@ -16,6 +17,7 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
     enabled: !!shift?.id && isOpen
   });
   const { addToast } = useToast();
+  const [confirmState, setConfirmState] = useState({ isOpen: false, message: '', onConfirm: null });
 
   const [formData, setFormData] = useState({
     requiredSkillId: shift?.requiredSkillId || '',
@@ -60,24 +62,31 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
       if (err.response?.status === 409) {
         const result = err.response.data;
         const msg = result.warnings.join('\n');
-        if (window.confirm(`${result.message}\n\nWarnings:\n${msg}\n\nForce assignment anyway?`)) {
-          handleAssign(userId, true);
-        }
-      } else {
-          addToast(err.response?.data?.message || 'Failed to assign', 'error');
-      }
+        setConfirmState({
+          isOpen: true,
+          message: `${result.message}\n\nWarnings:\n${msg}\n\nForce assignment anyway?`,
+          onConfirm: () => {
+            setConfirmState(prev => ({ ...prev, isOpen: false }));
+            handleAssign(userId, true);
+          }
+        });
     }
   };
 
   const handleUnassign = async (userId) => {
-    if (window.confirm('Remove this person from the shift?')) {
-      try {
-        await unassignStaff.mutateAsync({ shiftId: shift.id, userId });
-        addToast('Unassigned staff', 'success');
-      } catch (err) {
-        addToast('Failed to unassign', 'error');
+    setConfirmState({
+      isOpen: true,
+      message: 'Remove this person from the shift?',
+      onConfirm: async () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+        try {
+          await unassignStaff.mutateAsync({ shiftId: shift.id, userId });
+          addToast('Unassigned staff', 'success');
+        } catch (err) {
+          addToast('Failed to unassign', 'error');
+        }
       }
-    }
+    });
   };
 
   if (!shift) return null;

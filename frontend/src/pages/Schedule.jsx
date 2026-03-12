@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from '../context/ToastContext.jsx';
 import { useLocations } from '../hooks/useLocations';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useShifts, usePublishShifts, useDeleteShift, useClockIn, useClockOut } from '../hooks/useShifts';
 import Loader from '../components/Loader';
 import Badge from '../components/Badge';
@@ -17,6 +18,7 @@ const Schedule = () => {
   const { addToast } = useToast();
   const [selectedLocation, setSelectedLocation] = useState('');
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [confirmState, setConfirmState] = useState({ isOpen: false, message: '', onConfirm: null });
   
   // Mutations
   const publishMutation = usePublishShifts();
@@ -47,28 +49,38 @@ const Schedule = () => {
       addToast('Select a location first', 'error');
       return;
     }
-    if (window.confirm('Publish all draft shifts for this week?')) {
-      try {
-        await publishMutation.mutateAsync({
-          locationId: selectedLocation,
-          from: startDate.toISOString(),
-          to: endDate.toISOString(),
-        });
-        addToast('Schedule published!', 'success');
-      } catch (err) {
-        addToast('Failed to publish', 'error');
+    setConfirmState({
+      isOpen: true,
+      message: 'Publish all draft shifts for this week?',
+      onConfirm: async () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+        try {
+          await publishMutation.mutateAsync({
+            locationId: selectedLocation,
+            from: startDate.toISOString(),
+            to: endDate.toISOString(),
+          });
+          addToast('Schedule published!', 'success');
+        } catch (err) {
+          addToast('Failed to publish', 'error');
+        }
       }
-    }
+    });
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this shift?')) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (err) {
-        addToast('Failed to delete shift', 'error');
+    setConfirmState({
+      isOpen: true,
+      message: 'Delete this shift?',
+      onConfirm: async () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+        try {
+          await deleteMutation.mutateAsync(id);
+        } catch (err) {
+          addToast('Failed to delete shift', 'error');
+        }
       }
-    }
+    });
   };
 
   const startDate = startOfWeek(currentWeek);
@@ -124,6 +136,12 @@ const Schedule = () => {
         {days.map(day => {
           const dayStr = format(day, 'yyyy-MM-dd');
           const dayShifts = shifts?.filter(s => format(parseISO(s.startTimeUtc), 'yyyy-MM-dd') === dayStr) || [];
+                <ConfirmDialog
+                  isOpen={confirmState.isOpen}
+                  message={confirmState.message}
+                  onConfirm={confirmState.onConfirm}
+                  onCancel={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+                />
 
           return (
             <div key={dayStr} className="day-column">
