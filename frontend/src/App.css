@@ -619,11 +619,7 @@ html {
   flex-direction: column;
   gap: 0.25rem;
 }
-.shift-tz {
-  font-size: 0.75rem;
-  color: #666;
-  margin-left: 4px;
-}
+
 .assignee-info {
   font-size: 0.75rem;
   font-weight: 600;
@@ -1480,14 +1476,6 @@ html {
   gap: 0.5rem;
   max-height: 300px;
   overflow-y: auto;
-}
-.suggestions-block {
-  border: 1px dashed #999;
-  padding: 8px;
-  background: #f9f9f9;
-}
-.suggestions-list button {
-  cursor: pointer;
 }
 
 .eligible-item {

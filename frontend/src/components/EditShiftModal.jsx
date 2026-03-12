@@ -23,8 +23,6 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
     endTimeUtc: shift?.endTimeUtc ? shift.endTimeUtc.slice(0, 16) : '',
   });
 
-  const [suggestedAlternatives, setSuggestedAlternatives] = useState([]);
-
   // Reset form when shift changes
   React.useEffect(() => {
     if (shift) {
@@ -35,9 +33,6 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
         startTimeUtc: new Date(shift.startTimeUtc).toISOString().slice(0, 16),
         endTimeUtc: new Date(shift.endTimeUtc).toISOString().slice(0, 16),
       });
-      setSuggestedAlternatives([]);
-    } else {
-      setSuggestedAlternatives([]);
     }
   }, [shift]);
 
@@ -58,18 +53,11 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
   const handleAssign = async (userId, force = false) => {
     try {
       await assignStaff.mutateAsync({ shiftId: shift.id, userId, force });
-      setSuggestedAlternatives([]);
     } catch (err) {
       if (err.response?.status === 409) {
         const result = err.response.data;
-        if (result.suggestedAlternatives && result.suggestedAlternatives.length) {
-          setSuggestedAlternatives(result.suggestedAlternatives);
-        }
-        let msg = result.message;
-        if (result.warnings && result.warnings.length) {
-          msg += '\n\nWarnings:\n' + result.warnings.join('\n');
-        }
-        if (window.confirm(`${msg}\n\nForce assignment anyway?`)) {
+        const msg = result.warnings.join('\n');
+        if (window.confirm(`${result.message}\n\nWarnings:\n${msg}\n\nForce assignment anyway?`)) {
           handleAssign(userId, true);
         }
       } else {
@@ -172,23 +160,6 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
 
           <h4>Available & Eligible Staff</h4>
           <div className="eligible-staff-list">
-            {/* show sector for suggested alternatives when constraints prevented an earlier assignment */}
-            {suggestedAlternatives.length > 0 && (
-              <div className="suggestions-block mb-4">
-                <h5>Suggested Alternatives</h5>
-                <div className="suggestions-list">
-                  {suggestedAlternatives.map(alt => (
-                    <button
-                      key={alt.id}
-                      className="btn-secondary btn-sm mr-2 mb-2"
-                      onClick={() => handleAssign(alt.id)}
-                    >
-                      {alt.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             {loadingEligible ? <p>Loading candidates...</p> : (
               eligibleStaff?.map(item => {
                 const isAssigned = currentAssignments.some(a => a.userId === item.user.id);

@@ -12,6 +12,7 @@ import AuditLogs from './pages/AuditLogs';
 import Availability from './pages/Availability';
 import Analytics from './pages/Analytics';
 import StaffManagement from './pages/StaffManagement';
+import Notifications from './pages/Notifications';
 import './App.css';
 
 function App() {
@@ -49,6 +50,10 @@ function App() {
         <Route 
           path="/staff" 
           element={<Layout><StaffManagement /></Layout>} 
+        />
+        <Route 
+          path="/notifications" 
+          element={<Layout><Notifications /></Layout>} 
         />
         
         {/* Redirect unknown logged-in routes to dashboard */}

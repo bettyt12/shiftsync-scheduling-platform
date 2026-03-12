@@ -44,33 +44,6 @@ export const useAssignStaff = () => {
   });
 };
 
-  // clock in/out mutations for the currently assigned user
-  export const useClockIn = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-      mutationFn: async (shiftId) => {
-        const { data } = await api.post(`/shifts/${shiftId}/clock-in`);
-        return data;
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['shifts'] });
-      },
-    });
-  };
-
-  export const useClockOut = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-      mutationFn: async (shiftId) => {
-        const { data } = await api.post(`/shifts/${shiftId}/clock-out`);
-        return data;
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['shifts'] });
-      },
-    });
-  };
-
 export const useUnassignStaff = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -119,5 +92,31 @@ export const useDeleteShift = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
     },
+  });
+};
+
+export const useClockIn = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (shiftId) => {
+      const { data } = await api.post(`/shifts/${shiftId}/clock-in`);
+      return data.assignment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+    }
+  });
+};
+
+export const useClockOut = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (shiftId) => {
+      const { data } = await api.post(`/shifts/${shiftId}/clock-out`);
+      return data.assignment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+    }
   });
 };

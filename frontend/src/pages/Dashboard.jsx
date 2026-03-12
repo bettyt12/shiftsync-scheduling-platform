@@ -3,7 +3,7 @@ import Card from '../components/Card';
 import Badge from '../components/Badge';
 import Loader from '../components/Loader';
 import { useLocations } from '../hooks/useLocations';
-import { useShifts, useEligibleStaff } from '../hooks/useShifts'; // Wait, I'll need a new hook
+import { useShifts, useEligibleStaff, useClockIn, useClockOut } from '../hooks/useShifts';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -42,6 +42,9 @@ const Dashboard = () => {
 
   const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const { data: onDuty, isLoading: loadingOnDuty } = useOnDuty(selectedLocation, isAdminOrManager);
+
+  const clockInMutation = useClockIn();
+  const clockOutMutation = useClockOut();
 
   if (loadingLocations) {
     return (
@@ -106,6 +109,36 @@ const Dashboard = () => {
                       {shift.status}
                     </Badge>
                   </div>
+                  {/* clock controls for staff */}
+                  {user?.role === 'STAFF' && (
+                    (() => {
+                      const myAssign = shift.assignments?.find(a => a.userId === user.id);
+                      if (!myAssign) return null;
+                      if (!myAssign.clockInTimeUtc) {
+                        return (
+                          <button
+                            className="btn-secondary btn-sm mt-2"
+                            onClick={() => clockInMutation.mutate(shift.id)}
+                            disabled={clockInMutation.isLoading}
+                          >
+                            {clockInMutation.isLoading ? '...' : 'Clock In'}
+                          </button>
+                        );
+                      }
+                      if (myAssign.clockInTimeUtc && !myAssign.clockOutTimeUtc) {
+                        return (
+                          <button
+                            className="btn-secondary btn-sm mt-2"
+                            onClick={() => clockOutMutation.mutate(shift.id)}
+                            disabled={clockOutMutation.isLoading}
+                          >
+                            {clockOutMutation.isLoading ? '...' : 'Clock Out'}
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
                 </li>
               ))}
             </ul>

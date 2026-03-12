@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications, useMarkAsRead } from '../hooks/useNotifications';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import Badge from './Badge';
@@ -31,6 +32,13 @@ const NotificationBell = () => {
     } catch (err) {
       console.error('Failed to mark as read', err);
     }
+  };
+
+  // navigate to the full notifications page
+  const navigate = useNavigate();
+  const handleViewAll = () => {
+    setIsOpen(false);
+    navigate('/notifications');
   };
 
   return (
@@ -81,7 +89,7 @@ const NotificationBell = () => {
           </div>
           
           <div className="dropdown-footer">
-            <button className="view-all-btn">View All</button>
+            <button className="view-all-btn" onClick={handleViewAll}>View All</button>
           </div>
         </div>
       )}

@@ -12,7 +12,8 @@ import {
   BarChart3, 
   FileText, 
   LogOut,
-  Waves
+  Waves,
+  Bell
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -26,6 +27,7 @@ const Layout = ({ children }) => {
     { to: '/schedule', label: 'Schedule', icon: CalendarDays },
     { to: '/coverage', label: 'Coverage Board', icon: ShieldCheck },
     { to: '/availability', label: 'My Availability', icon: Clock },
+    { to: '/notifications', label: 'Notifications', icon: Bell },
   ];
 
   const managerItems = [
