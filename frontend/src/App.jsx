@@ -11,7 +11,7 @@ import Coverage from './pages/Coverage';
 import AuditLogs from './pages/AuditLogs';
 import Availability from './pages/Availability';
 import Analytics from './pages/Analytics';
-
+import StaffManagement from './pages/StaffManagement';
 import './App.css';
 
 function App() {
@@ -45,6 +45,10 @@ function App() {
         <Route 
           path="/analytics" 
           element={<Layout><Analytics /></Layout>} 
+        />
+        <Route 
+          path="/staff" 
+          element={<Layout><StaffManagement /></Layout>} 
         />
         
         {/* Redirect unknown logged-in routes to dashboard */}

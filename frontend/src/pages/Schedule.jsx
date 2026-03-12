@@ -7,7 +7,8 @@ import { format, startOfWeek, endOfWeek, addDays, parseISO } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import CoverageRequestModal from '../components/CoverageRequestModal';
 import CreateShiftModal from '../components/CreateShiftModal';
-import { Trash2 } from 'lucide-react';
+import EditShiftModal from '../components/EditShiftModal';
+import { Trash2, Edit3 } from 'lucide-react';
 
 const Schedule = () => {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ const Schedule = () => {
   // Modal states
   const [isCoverageModalOpen, setIsCoverageModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedShift, setSelectedShift] = useState(null);
 
   const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -29,6 +31,11 @@ const Schedule = () => {
   const handleRequestCoverage = (shift) => {
     setSelectedShift(shift);
     setIsCoverageModalOpen(true);
+  };
+
+  const handleEditShift = (shift) => {
+    setSelectedShift(shift);
+    setIsEditModalOpen(true);
   };
 
   const handlePublish = async () => {
@@ -127,15 +134,24 @@ const Schedule = () => {
                     const isAssignedToMe = shift.assignments?.some(a => a.userId === user?.id);
                     
                     return (
-                      <div key={shift.id} className={`shift-card ${isAssignedToMe ? 'my-shift' : ''} ${shift.status === 'DRAFT' ? 'is-draft' : ''}`}>
+                      <div 
+                        key={shift.id} 
+                        className={`shift-card ${isAssignedToMe ? 'my-shift' : ''} ${shift.status === 'DRAFT' ? 'is-draft' : ''}`}
+                        onClick={() => isAdminOrManager && handleEditShift(shift)}
+                      >
                         <div className="shift-header">
                            <Badge variant={shift.status === 'PUBLISHED' ? 'success' : 'warning'}>
                             {shift.status[0]}
                           </Badge>
                           {isAdminOrManager && (
-                            <button className="btn-icon-small" onClick={() => handleDelete(shift.id)}>
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="shift-actions">
+                              <button 
+                                className="btn-icon-small" 
+                                onClick={(e) => { e.stopPropagation(); handleDelete(shift.id); }}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="shift-time">
@@ -143,6 +159,15 @@ const Schedule = () => {
                         </div>
                         <div className="shift-meta">
                           <span className="skill-label">{shift.requiredSkill?.name}</span>
+                          <div className="assignee-info">
+                            {shift.assignments && shift.assignments.length > 0 ? (
+                              <span className="assignee-name">
+                                {shift.assignments[0].user.name}
+                              </span>
+                            ) : (
+                              <span className="unassigned-label">Unassigned</span>
+                            )}
+                          </div>
                         </div>
                         {isAssignedToMe && (
                           <button 
@@ -171,6 +196,12 @@ const Schedule = () => {
       <CreateShiftModal 
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      <EditShiftModal 
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        shift={selectedShift}
       />
     </div>
   );
