@@ -7,9 +7,7 @@ import { requireRole } from "../middleware/requireRole";
 
 export const skillsRouter = Router();
 
-skillsRouter.use(requireAuth, requireRole(["ADMIN"]));
-
-skillsRouter.get("/", async (_req, res, next) => {
+skillsRouter.get("/", requireAuth, async (_req, res, next) => {
   try {
     const skills = await prisma.skill.findMany({ orderBy: { name: "asc" } });
     res.json({ skills });
@@ -22,7 +20,7 @@ const CreateSkillSchema = z.object({
   name: z.string().min(2),
 });
 
-skillsRouter.post("/", async (req, res, next) => {
+skillsRouter.post("/", requireAuth, requireRole(["ADMIN"]), async (req, res, next) => {
   try {
     const body = CreateSkillSchema.parse(req.body);
     const skill = await prisma.skill.create({

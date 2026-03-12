@@ -44,15 +44,33 @@ const Layout = ({ children }) => {
                   Coverage Board
                 </NavLink>
               </li>
-              {(user?.role === 'admin' || user?.role === 'owner') && (
-                <li>
-                  <NavLink 
-                    to="/audit"
-                    className={({ isActive }) => (isActive ? 'active' : '')}
-                  >
-                    Audit Logs
-                  </NavLink>
-                </li>
+              <li>
+                <NavLink 
+                  to="/availability"
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                >
+                  My Availability
+                </NavLink>
+              </li>
+              {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+                <>
+                  <li>
+                    <NavLink 
+                      to="/analytics"
+                      className={({ isActive }) => (isActive ? 'active' : '')}
+                    >
+                      Analytics
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink 
+                      to="/audit"
+                      className={({ isActive }) => (isActive ? 'active' : '')}
+                    >
+                      Audit Logs
+                    </NavLink>
+                  </li>
+                </>
               )}
             </ul>
           </nav>

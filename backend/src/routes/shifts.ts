@@ -12,7 +12,7 @@ import { addHours, isBefore } from "date-fns";
 
 export const shiftsRouter = Router();
 
-shiftsRouter.use(requireAuth, requireRole(["ADMIN", "MANAGER"]));
+shiftsRouter.use(requireAuth);
 
 const ListShiftsQuery = z.object({
   locationId: z.string().min(1),
@@ -23,8 +23,13 @@ const ListShiftsQuery = z.object({
 shiftsRouter.get("/", async (req: AuthedRequest, res, next) => {
   try {
     const q = ListShiftsQuery.parse(req.query);
-    if (req.auth!.role === "MANAGER") {
-      await assertManagerHasLocationAccess({ managerUserId: req.auth!.userId, locationId: q.locationId });
+    if (req.auth!.role !== "ADMIN") {
+      const link = await prisma.userLocation.findUnique({
+        where: { userId_locationId: { userId: req.auth!.userId, locationId: q.locationId } },
+      });
+      if (!link) {
+        throw new ApiError({ status: 403, code: "FORBIDDEN", message: "You do not have access to this location" });
+      }
     }
 
     const from = q.from ? new Date(q.from) : undefined;
@@ -61,7 +66,10 @@ const CreateShiftBody = z.object({
   status: z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]).optional(),
 });
 
-shiftsRouter.post("/", async (req: AuthedRequest, res, next) => {
+// Middleware for modification routes
+const requireEditPerms = requireRole(["ADMIN", "MANAGER"]);
+
+shiftsRouter.post("/", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
     const body = CreateShiftBody.parse(req.body);
     if (req.auth!.role === "MANAGER") {
@@ -110,7 +118,7 @@ const PatchShiftBody = z
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No fields provided" });
 
-shiftsRouter.patch("/:id", async (req: AuthedRequest, res, next) => {
+shiftsRouter.patch("/:id", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
     const { id } = z.object({ id: z.string().min(1) }).parse(req.params);
     const body = PatchShiftBody.parse(req.body);
@@ -139,17 +147,43 @@ shiftsRouter.patch("/:id", async (req: AuthedRequest, res, next) => {
     }
 
     const data: Parameters<typeof prisma.shift.update>[0]["data"] = {};
-    if (body.requiredSkillId) data.requiredSkill = { connect: { id: body.requiredSkillId } };
+    let criticalChange = false;
+
+    if (body.requiredSkillId) { data.requiredSkill = { connect: { id: body.requiredSkillId } }; criticalChange = true; }
     if (typeof body.headcount === "number") data.headcount = body.headcount;
     if (body.status) data.status = body.status;
-    if (start) data.startTimeUtc = start;
-    if (end) data.endTimeUtc = end;
+    if (start) { data.startTimeUtc = start; criticalChange = true; }
+    if (end) { data.endTimeUtc = end; criticalChange = true; }
 
     const shift = await prisma.shift.update({
       where: { id },
       data,
       include: { requiredSkill: true },
     });
+
+    // If critical details change, cancel pending coverage requests
+    if (criticalChange) {
+      const pendingRequests = await prisma.coverageRequest.findMany({
+        where: { shiftId: id, status: { in: ["PENDING", "ACCEPTED_BY_PEER", "PENDING_MANAGER"] } },
+        select: { id: true, fromUserId: true }
+      });
+
+      if (pendingRequests.length > 0) {
+        await prisma.coverageRequest.updateMany({
+          where: { id: { in: pendingRequests.map(r => r.id) } },
+          data: { status: "CANCELLED" }
+        });
+
+        const { createNotification } = await import("../services/notifications");
+        for (const req of pendingRequests) {
+          await createNotification({
+            userId: req.fromUserId,
+            type: "COVERAGE_CANCELLED",
+            payload: { message: "Your coverage request was cancelled because the underlying shift was modified by a manager." }
+          });
+        }
+      }
+    }
 
     await createAuditLog({
       actorUserId: req.auth!.userId,
@@ -171,7 +205,7 @@ const AssignBody = z.object({
   force: z.boolean().optional(),
 });
 
-shiftsRouter.post("/:id/assign", async (req: AuthedRequest, res, next) => {
+shiftsRouter.post("/:id/assign", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
     const { id: shiftId } = z.object({ id: z.string().min(1) }).parse(req.params);
     const { userId, force } = AssignBody.parse(req.body);
@@ -222,7 +256,7 @@ shiftsRouter.post("/:id/assign", async (req: AuthedRequest, res, next) => {
   }
 });
 
-shiftsRouter.post("/:id/unassign", async (req: AuthedRequest, res, next) => {
+shiftsRouter.post("/:id/unassign", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
     const { id } = z.object({ id: z.string().min(1) }).parse(req.params);
     const body = AssignBody.parse(req.body);
@@ -265,7 +299,7 @@ const PublishBody = z.object({
   to: z.string().datetime(),
 });
 
-shiftsRouter.post("/bulk-publish", async (req: AuthedRequest, res, next) => {
+shiftsRouter.post("/bulk-publish", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
     const { locationId, from, to } = PublishBody.parse(req.body);
     if (req.auth!.role === "MANAGER") {
@@ -341,7 +375,33 @@ shiftsRouter.post("/:id/clock-out", async (req: AuthedRequest, res, next) => {
   }
 });
 
-shiftsRouter.get("/on-duty", async (req: AuthedRequest, res, next) => {
+shiftsRouter.delete("/:id", requireEditPerms, async (req: AuthedRequest, res, next) => {
+  try {
+    const { id } = z.object({ id: z.string().min(1) }).parse(req.params);
+    const existing = await prisma.shift.findUnique({ where: { id } });
+    if (!existing) throw new ApiError({ status: 404, code: "NOT_FOUND", message: "Shift not found" });
+
+    if (req.auth!.role === "MANAGER") {
+      await assertManagerHasLocationAccess({ managerUserId: req.auth!.userId, locationId: existing.locationId });
+    }
+
+    await prisma.shift.delete({ where: { id } });
+
+    await createAuditLog({
+      actorUserId: req.auth!.userId,
+      entityType: "Shift",
+      entityId: id,
+      action: "DELETE",
+      before: existing,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+shiftsRouter.get("/on-duty", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
     const { locationId } = z.object({ locationId: z.string() }).parse(req.query);
     if (req.auth!.role === "MANAGER") {

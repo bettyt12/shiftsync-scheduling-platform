@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import Schedule from './pages/Schedule';
 import Coverage from './pages/Coverage';
 import AuditLogs from './pages/AuditLogs';
+import Availability from './pages/Availability';
+import Analytics from './pages/Analytics';
 
 import './App.css';
 
@@ -35,6 +37,14 @@ function App() {
         <Route 
           path="/audit" 
           element={<Layout><AuditLogs /></Layout>} 
+        />
+        <Route 
+          path="/availability" 
+          element={<Layout><Availability /></Layout>} 
+        />
+        <Route 
+          path="/analytics" 
+          element={<Layout><Analytics /></Layout>} 
         />
         
         {/* Redirect unknown logged-in routes to dashboard */}

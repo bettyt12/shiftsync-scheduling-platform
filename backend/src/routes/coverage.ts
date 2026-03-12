@@ -16,6 +16,51 @@ const CreateRequestSchema = z.object({
     toUserId: z.string().optional(), // Specific for SWAP
 });
 
+coverageRouter.get("/requests", async (req: AuthedRequest, res, next) => {
+    try {
+        const { status, shiftId, type } = z.object({
+            status: z.enum(["PENDING", "ACCEPTED_BY_PEER", "PENDING_MANAGER", "APPROVED", "REJECTED", "CANCELLED"]).optional(),
+            shiftId: z.string().optional(),
+            type: z.enum(["SWAP", "DROP"]).optional(),
+        }).parse(req.query);
+
+        const where: any = {};
+        if (status) where.status = status;
+        if (shiftId) where.shiftId = shiftId;
+        if (type) where.type = type;
+
+        // RBAC: Non-admins only see requests for locations they belong to
+        if (req.auth!.role !== "ADMIN") {
+            const userLocations = await prisma.userLocation.findMany({
+                where: { userId: req.auth!.userId },
+                select: { locationId: true }
+            });
+            const locationIds = userLocations.map(ul => ul.locationId);
+            where.shift = { locationId: { in: locationIds } };
+        }
+
+        const requests = await prisma.coverageRequest.findMany({
+            where,
+            include: {
+                shift: {
+                    include: {
+                        location: true,
+                        requiredSkill: true,
+                    }
+                },
+                fromUser: { select: { id: true, name: true, email: true } },
+                toUser: { select: { id: true, name: true, email: true } },
+                claimedByUser: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        res.json({ requests });
+    } catch (err) {
+        next(err);
+    }
+});
+
 coverageRouter.post("/requests", async (req: AuthedRequest, res, next) => {
     try {
         const body = CreateRequestSchema.parse(req.body);

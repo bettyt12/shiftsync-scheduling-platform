@@ -6,6 +6,7 @@ export interface ConstraintResult {
     ok: boolean;
     violations: string[];
     warnings: string[];
+    suggestedAlternatives?: { id: string; name: string }[];
 }
 
 export async function checkShiftConstraints(args: {
@@ -135,11 +136,55 @@ export async function checkShiftConstraints(args: {
         warnings.push("Shift duration exceeds 8 hours.");
     }
 
-    return {
+    // 8. Consecutive Days
+    const daysWorked = new Set<string>();
+    const threeWeeksAgo = addHours(shift.startTimeUtc, -24 * 21);
+    const historical = await prisma.shiftAssignment.findMany({
+        where: { userId, status: "ASSIGNED", shift: { startTimeUtc: { gte: threeWeeksAgo } } },
+        include: { shift: true }
+    });
+
+    for (const asgn of historical) {
+        if (asgn.shiftId === shiftId) continue;
+        daysWorked.add(asgn.shift.startTimeUtc.toISOString().split("T")[0]!);
+    }
+
+    const targetDayStr = shift.startTimeUtc.toISOString().split("T")[0]!;
+    daysWorked.add(targetDayStr);
+
+    let streak = 1;
+    for (let i = 1; i <= 7; i++) {
+        const prevDay = new Date(shift.startTimeUtc.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split("T")[0]!;
+        if (daysWorked.has(prevDay)) streak++;
+        else break;
+    }
+
+    if (streak >= 7) {
+        violations.push("Staff member would be working 7 or more consecutive days (Requires Manager Override).");
+    } else if (streak === 6) {
+        warnings.push("Staff member will be working their 6th consecutive day.");
+    }
+
+    const result: ConstraintResult = {
         ok: violations.length === 0,
         violations,
         warnings,
     };
+
+    if (!result.ok) {
+        const eligibleStaff = await prisma.user.findMany({
+            where: {
+                role: "STAFF",
+                id: { not: userId },
+                locations: { some: { locationId: shift.locationId } },
+                skills: { some: { skillId: shift.requiredSkillId } },
+            },
+            select: { id: true, name: true }
+        });
+        result.suggestedAlternatives = eligibleStaff.slice(0, 3);
+    }
+
+    return result;
 }
 
 async function checkAvailability(user: any, shift: Shift): Promise<boolean> {
