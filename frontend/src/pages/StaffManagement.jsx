@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 import { useUsers, useUpdateUser } from '../hooks/useUsers';
 import { useSkills } from '../hooks/useSkills';
 import { useLocations } from '../hooks/useLocations';
@@ -13,6 +14,7 @@ const StaffManagement = () => {
   const { data: skills } = useSkills();
   const { data: locations } = useLocations();
   const updateUser = useUpdateUser();
+  const { addToast } = useToast();
 
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
@@ -60,8 +62,9 @@ const StaffManagement = () => {
         ...formData
       });
       setEditingUser(null);
+      addToast('User updated successfully', 'success');
     } catch (err) {
-      alert('Failed to update user');
+      addToast('Failed to update user', 'error');
     }
   };
 

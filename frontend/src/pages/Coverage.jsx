@@ -1,4 +1,5 @@
 import React from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 import { useCoverageRequests, useAcceptCoverage, useApproveCoverage } from '../hooks/useCoverage';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
@@ -11,14 +12,15 @@ const Coverage = () => {
   const { data: requests, isLoading } = useCoverageRequests();
   const acceptMutation = useAcceptCoverage();
   const approveMutation = useApproveCoverage();
+  const { addToast } = useToast();
 
   const handleAccept = async (id) => {
     if (window.confirm('Are you sure you want to claim this shift?')) {
       try {
         await acceptMutation.mutateAsync(id);
-        alert('Shift claimed successfully! Awaiting manager approval.');
+        addToast('Shift claimed successfully! Awaiting manager approval.', 'success');
       } catch (err) {
-        alert(err.response?.data?.message || 'Failed to claim shift');
+        addToast(err.response?.data?.message || 'Failed to claim shift', 'error');
       }
     }
   };
@@ -27,9 +29,9 @@ const Coverage = () => {
     const reason = window.prompt('Optional: Reason for approval');
     try {
       await approveMutation.mutateAsync({ requestId: id, reason });
-      alert('Request approved!');
+      addToast('Request approved!', 'success');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to approve');
+      addToast(err.response?.data?.message || 'Failed to approve', 'error');
     }
   };
 

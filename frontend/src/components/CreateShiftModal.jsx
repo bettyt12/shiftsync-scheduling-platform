@@ -1,4 +1,5 @@
 import React from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,6 +21,7 @@ const schema = z.object({
 const CreateShiftModal = ({ isOpen, onClose }) => {
   const queryClient = useQueryClient();
   const { data: locations } = useLocations();
+  const { addToast } = useToast();
   
   const { data: skills } = useQuery({
     queryKey: ['skills'],
@@ -57,8 +59,9 @@ const CreateShiftModal = ({ isOpen, onClose }) => {
         endTimeUtc: new Date(data.endTimeUtc).toISOString(),
       };
       await createMutation.mutateAsync(payload);
+      addToast('Shift created', 'success');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create shift');
+      addToast(err.response?.data?.message || 'Failed to create shift', 'error');
     }
   };
 
@@ -121,5 +124,7 @@ const CreateShiftModal = ({ isOpen, onClose }) => {
     </Modal>
   );
 };
+
+// add toast hook near other hooks
 
 export default CreateShiftModal;

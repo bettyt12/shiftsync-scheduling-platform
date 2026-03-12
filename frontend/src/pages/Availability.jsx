@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 import { useAvailability, useAddRecurringAvailability, useDeleteAvailability } from '../hooks/useAvailability';
 import Card from '../components/Card';
 import Loader from '../components/Loader';
@@ -10,6 +11,7 @@ const Availability = () => {
   const { data: availability, isLoading } = useAvailability();
   const addMutation = useAddRecurringAvailability();
   const deleteMutation = useDeleteAvailability();
+  const { addToast } = useToast();
 
   const [newEntry, setNewEntry] = useState({
     dayOfWeek: 1,
@@ -22,8 +24,9 @@ const Availability = () => {
     e.preventDefault();
     try {
       await addMutation.mutateAsync(newEntry);
+      addToast('Availability added', 'success');
     } catch (err) {
-      alert('Failed to add availability');
+      addToast('Failed to add availability', 'error');
     }
   };
 

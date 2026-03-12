@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 import { useLocations } from '../hooks/useLocations';
 import { useShifts, usePublishShifts, useDeleteShift, useClockIn, useClockOut } from '../hooks/useShifts';
 import Loader from '../components/Loader';
@@ -13,6 +14,7 @@ import { Trash2, Edit3 } from 'lucide-react';
 const Schedule = () => {
   const { user } = useAuth();
   const { data: locations, isLoading: loadingLocations } = useLocations();
+  const { addToast } = useToast();
   const [selectedLocation, setSelectedLocation] = useState('');
   const [currentWeek, setCurrentWeek] = useState(new Date());
   
@@ -41,7 +43,10 @@ const Schedule = () => {
   };
 
   const handlePublish = async () => {
-    if (!selectedLocation) return alert('Select a location first');
+    if (!selectedLocation) {
+      addToast('Select a location first', 'error');
+      return;
+    }
     if (window.confirm('Publish all draft shifts for this week?')) {
       try {
         await publishMutation.mutateAsync({
@@ -49,9 +54,9 @@ const Schedule = () => {
           from: startDate.toISOString(),
           to: endDate.toISOString(),
         });
-        alert('Schedule published!');
+        addToast('Schedule published!', 'success');
       } catch (err) {
-        alert('Failed to publish');
+        addToast('Failed to publish', 'error');
       }
     }
   };
@@ -61,7 +66,7 @@ const Schedule = () => {
       try {
         await deleteMutation.mutateAsync(id);
       } catch (err) {
-        alert('Failed to delete shift');
+        addToast('Failed to delete shift', 'error');
       }
     }
   };

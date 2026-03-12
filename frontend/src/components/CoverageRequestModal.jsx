@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,11 +43,11 @@ const CoverageRequestModal = ({ isOpen, onClose, shift }) => {
         type: data.type,
         toUserId: data.type === 'SWAP' && data.toUserId ? data.toUserId : undefined,
       });
-      alert('Coverage request submitted successfully!');
+      addToast('Coverage request submitted successfully!', 'success');
       reset();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to submit request');
+      addToast(err.response?.data?.message || 'Failed to submit request', 'error');
     }
   };
 

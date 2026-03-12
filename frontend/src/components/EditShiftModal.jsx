@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Modal from './Modal';
 import { useUpdateShift, useEligibleStaff, useAssignStaff, useUnassignStaff } from '../hooks/useShifts';
 import { useSkills } from '../hooks/useSkills';
+import { useToast } from '../context/ToastContext.jsx';
 import { format, parseISO } from 'date-fns';
 import Badge from './Badge';
 import { UserPlus, UserMinus, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -14,6 +15,7 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
   const { data: eligibleStaff, isLoading: loadingEligible } = useEligibleStaff(shift?.id, {
     enabled: !!shift?.id && isOpen
   });
+  const { addToast } = useToast();
 
   const [formData, setFormData] = useState({
     requiredSkillId: shift?.requiredSkillId || '',
@@ -45,8 +47,9 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
         startTimeUtc: new Date(formData.startTimeUtc).toISOString(),
         endTimeUtc: new Date(formData.endTimeUtc).toISOString(),
       });
+      addToast('Shift updated', 'success');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update shift');
+      addToast(err.response?.data?.message || 'Failed to update shift', 'error');
     }
   };
 
@@ -61,7 +64,7 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
           handleAssign(userId, true);
         }
       } else {
-        alert(err.response?.data?.message || 'Failed to assign');
+          addToast(err.response?.data?.message || 'Failed to assign', 'error');
       }
     }
   };
@@ -70,8 +73,9 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
     if (window.confirm('Remove this person from the shift?')) {
       try {
         await unassignStaff.mutateAsync({ shiftId: shift.id, userId });
+        addToast('Unassigned staff', 'success');
       } catch (err) {
-        alert('Failed to unassign');
+        addToast('Failed to unassign', 'error');
       }
     }
   };
