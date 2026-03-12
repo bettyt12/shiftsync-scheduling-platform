@@ -19,6 +19,57 @@ export const useShifts = ({ locationId, from, to }, options = {}) => {
   });
 };
 
+export const useEligibleStaff = (shiftId, options = {}) => {
+  return useQuery({
+    queryKey: ['shift-eligible-staff', shiftId],
+    queryFn: async () => {
+      const { data } = await api.get(`/shifts/${shiftId}/eligible-staff`);
+      return data.staff;
+    },
+    enabled: !!shiftId,
+    ...options
+  });
+};
+
+export const useAssignStaff = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ shiftId, userId, force }) => {
+      const { data } = await api.post(`/shifts/${shiftId}/assign`, { userId, force });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+    },
+  });
+};
+
+export const useUnassignStaff = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ shiftId, userId }) => {
+      const { data } = await api.post(`/shifts/${shiftId}/unassign`, { userId });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+    },
+  });
+};
+
+export const useUpdateShift = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }) => {
+      const { data } = await api.patch(`/shifts/${id}`, payload);
+      return data.shift;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+    },
+  });
+};
+
 export const usePublishShifts = () => {
   const queryClient = useQueryClient();
   return useMutation({
