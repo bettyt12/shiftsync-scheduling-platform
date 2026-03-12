@@ -3,10 +3,24 @@ import Card from '../components/Card';
 import Badge from '../components/Badge';
 import Loader from '../components/Loader';
 import { useLocations } from '../hooks/useLocations';
-import { useShifts } from '../hooks/useShifts';
+import { useShifts, useEligibleStaff } from '../hooks/useShifts'; // Wait, I'll need a new hook
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import api from '../services/api';
+import { useQuery } from '@tanstack/react-query';
+
+const useOnDuty = (locationId, isEnabled) => {
+  return useQuery({
+    queryKey: ['on-duty', locationId],
+    queryFn: async () => {
+      const { data } = await api.get(`/shifts/on-duty?locationId=${locationId}`);
+      return data.onDuty;
+    },
+    enabled: !!locationId && isEnabled,
+    refetchInterval: 10000, 
+  });
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -25,6 +39,9 @@ const Dashboard = () => {
   }, { 
     enabled: !!selectedLocation 
   });
+
+  const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const { data: onDuty, isLoading: loadingOnDuty } = useOnDuty(selectedLocation, isAdminOrManager);
 
   if (loadingLocations) {
     return (
@@ -95,10 +112,32 @@ const Dashboard = () => {
           )}
         </Card>
 
+        {isAdminOrManager && (
+          <Card title="Live On-Duty Staff">
+            {loadingOnDuty ? (
+              <Loader />
+            ) : onDuty?.length === 0 ? (
+              <p className="text-muted">No one is currently clocked in.</p>
+            ) : (
+              <ul className="on-duty-list">
+                {onDuty?.map(item => (
+                  <li key={item.id} className="on-duty-item">
+                    <div className="user-info-cell">
+                      <div className="user-avatar-small">{item.user.name[0]}</div>
+                      <span>{item.user.name}</span>
+                    </div>
+                    <Badge variant="success">Active</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
         <Card title="Quick Actions">
           <div className="quick-actions">
             <Link to="/schedule" className="btn-primary">View Full Schedule</Link>
-            <Link to="/coverage" className="btn-secondary">Request Coverage</Link>
+            <Link to="/coverage" className="btn-secondary">Coverage Board</Link>
           </div>
         </Card>
       </div>
