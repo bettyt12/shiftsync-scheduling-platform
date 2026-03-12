@@ -6,6 +6,7 @@ import Loader from '../components/Loader';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
 import { format, parseISO } from 'date-fns';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const Coverage = () => {
   const { user } = useAuth();

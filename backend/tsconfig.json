@@ -2,7 +2,10 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
+    // File Layout
+    
+    // explicitly set rootDir to avoid TS6 warning
+    "rootDir": "./src",
     "outDir": "./dist",
 
     // Environment Settings

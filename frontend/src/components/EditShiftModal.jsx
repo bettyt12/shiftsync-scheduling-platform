@@ -3,7 +3,7 @@ import Modal from './Modal';
 import { useUpdateShift, useEligibleStaff, useAssignStaff, useUnassignStaff } from '../hooks/useShifts';
 import { useSkills } from '../hooks/useSkills';
 import { useToast } from '../context/ToastContext.jsx';
-import { format, parseISO } from 'date-fns';
+// import { format, parseISO } from 'date-fns';
 import Badge from './Badge';
 import { UserPlus, UserMinus, AlertTriangle, CheckCircle } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
@@ -70,6 +70,9 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
             handleAssign(userId, true);
           }
         });
+      } else {
+        addToast(err.response?.data?.message || 'Failed to assign', 'error');
+      }
     }
   };
 
@@ -203,8 +206,15 @@ const EditShiftModal = ({ isOpen, onClose, shift }) => {
           </div>
         </section>
       </div>
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+      />
     </Modal>
   );
 };
+
 
 export default EditShiftModal;
