@@ -1,9 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
+import { useSocket } from '../hooks/useSocket';
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuth();
+  useSocket(); // Initialize socket connection
 
   return (
     <div className="layout">
@@ -12,7 +15,12 @@ const Layout = ({ children }) => {
           <h1>ShiftSync</h1>
         </div>
         <div className="navbar-actions">
-          {user && <span className="user-greeting">Hi, {user.name || user.email}</span>}
+          {user && (
+            <>
+              <NotificationBell />
+              <span className="user-greeting">Hi, {user.name || user.email}</span>
+            </>
+          )}
           <button onClick={logout} className="btn-logout">Logout</button>
         </div>
       </header>
@@ -54,6 +62,14 @@ const Layout = ({ children }) => {
               </li>
               {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
                 <>
+                  <li>
+                    <NavLink 
+                      to="/staff"
+                      className={({ isActive }) => (isActive ? 'active' : '')}
+                    >
+                      Staff Management
+                    </NavLink>
+                  </li>
                   <li>
                     <NavLink 
                       to="/analytics"
