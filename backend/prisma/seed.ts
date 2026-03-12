@@ -14,19 +14,43 @@ function utcDate(iso: string) {
 }
 
 async function main() {
-  // Make seed repeatable for local dev
+  // Make seed repeatable for local dev (only touch known seed data)
   await prisma.coverageRequest.deleteMany();
   await prisma.shiftAssignment.deleteMany();
   await prisma.shift.deleteMany();
-  await prisma.availability.deleteMany();
+  await prisma.availability.deleteMany({
+    where: {
+      user: {
+        email: { endsWith: "@coastaleats.com" },
+      },
+    },
+  });
   await prisma.userSkill.deleteMany();
   await prisma.userLocation.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.userNotificationPreference.deleteMany();
-  await prisma.auditLog.deleteMany();
+  await prisma.notification.deleteMany({
+    where: {
+      user: {
+        email: { endsWith: "@coastaleats.com" },
+      },
+    },
+  });
+  await prisma.userNotificationPreference.deleteMany({
+    where: {
+      user: {
+        email: { endsWith: "@coastaleats.com" },
+      },
+    },
+  });
+  await prisma.auditLog.deleteMany({
+    where: { entityType: "seed" },
+  });
   await prisma.skill.deleteMany();
   await prisma.location.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.user.deleteMany({
+    where: {
+      email: { endsWith: "@coastaleats.com" },
+    },
+  });
 
   // Locations (4 locations, 2 timezones)
   const locations = await Promise.all([
@@ -273,7 +297,6 @@ async function main() {
       entityType: "seed",
       entityId: "initial",
       action: "SEED",
-      before: null,
       after: { locations: locations.length, skills: skills.length, users: 3 + staff.length },
       reason: "Initial seed for ShiftSync",
     },
