@@ -13,6 +13,8 @@ import { coverageRouter } from "./routes/coverage";
 import { analyticsRouter } from "./routes/analytics";
 import { notificationsRouter } from "./routes/notifications";
 import { auditRouter } from "./routes/audit";
+import { availabilityRouter } from "./routes/availability";
+import { usersRouter } from "./routes/users";
 import { setSocketIO } from "./services/notifications";
 
 const app = express();
@@ -35,11 +37,13 @@ app.get('/health', (_req, res) => {
 app.use("/auth", authRouter);
 app.use("/locations", locationsRouter);
 app.use("/skills", skillsRouter);
+app.use("/users", usersRouter);
 app.use("/shifts", shiftsRouter);
 app.use("/coverage", coverageRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/notifications", notificationsRouter);
 app.use("/audit", auditRouter);
+app.use("/availability", availabilityRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

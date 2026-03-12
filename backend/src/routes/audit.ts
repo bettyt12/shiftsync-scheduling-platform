@@ -6,8 +6,8 @@ import { requireRole } from "../middleware/requireRole";
 
 export const auditRouter = Router();
 
-// Only Admins can export audit logs
-auditRouter.use(requireAuth, requireRole(["ADMIN"]));
+// Only Admins and Managers can export audit logs
+auditRouter.use(requireAuth, requireRole(["ADMIN", "MANAGER"]));
 
 const ExportQuery = z.object({
     from: z.string().datetime().optional(),

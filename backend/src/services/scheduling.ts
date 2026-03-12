@@ -38,8 +38,8 @@ export async function checkShiftConstraints(args: {
     }
 
     // 2. Simple Role Check
-    if (user.role !== "STAFF") {
-        violations.push("Only STAFF users can be assigned to shifts.");
+    if (user.role === "ADMIN") {
+        violations.push("Corporate ADMIN users cannot be assigned to shifts.");
     }
 
     // 3. Location Certification
@@ -174,7 +174,7 @@ export async function checkShiftConstraints(args: {
     if (!result.ok) {
         const eligibleStaff = await prisma.user.findMany({
             where: {
-                role: "STAFF",
+                role: { in: ["STAFF", "MANAGER"] },
                 id: { not: userId },
                 locations: { some: { locationId: shift.locationId } },
                 skills: { some: { skillId: shift.requiredSkillId } },

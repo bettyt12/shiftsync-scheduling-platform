@@ -7,7 +7,7 @@ import { requireAuth, type AuthedRequest } from "../middleware/requireAuth";
 import { requireRole } from "../middleware/requireRole";
 import { assertManagerHasLocationAccess } from "../services/access";
 import { createAuditLog } from "../services/audit";
-import { createNotification } from "../services/notifications";
+import { createNotification, broadcastScheduleUpdate } from "../services/notifications";
 import { addHours, isBefore } from "date-fns";
 
 export const shiftsRouter = Router();
@@ -102,6 +102,8 @@ shiftsRouter.post("/", requireEditPerms, async (req: AuthedRequest, res, next) =
       after: shift,
     });
 
+    broadcastScheduleUpdate(body.locationId);
+
     res.status(201).json({ shift });
   } catch (err) {
     next(err);
@@ -194,6 +196,8 @@ shiftsRouter.patch("/:id", requireEditPerms, async (req: AuthedRequest, res, nex
       after: shift,
     });
 
+    broadcastScheduleUpdate(shift.locationId);
+
     res.json({ shift });
   } catch (err) {
     next(err);
@@ -250,6 +254,8 @@ shiftsRouter.post("/:id/assign", requireEditPerms, async (req: AuthedRequest, re
       },
     });
 
+    broadcastScheduleUpdate(shift.locationId);
+
     res.status(201).json({ assignment, warnings: result.warnings });
   } catch (err) {
     next(err);
@@ -283,6 +289,8 @@ shiftsRouter.post("/:id/unassign", requireEditPerms, async (req: AuthedRequest, 
         after: { shiftId: shift.id, userId: body.userId },
       },
     });
+
+    broadcastScheduleUpdate(shift.locationId);
 
     res.json({ ok: true });
   } catch (err) {
@@ -336,6 +344,8 @@ shiftsRouter.post("/bulk-publish", requireEditPerms, async (req: AuthedRequest, 
       action: "BULK_PUBLISH",
       after: { from, to, count: result.count },
     });
+
+    broadcastScheduleUpdate(locationId);
 
     res.json({ publishedCount: result.count });
   } catch (err) {
@@ -395,7 +405,44 @@ shiftsRouter.delete("/:id", requireEditPerms, async (req: AuthedRequest, res, ne
       before: existing,
     });
 
+    broadcastScheduleUpdate(existing.locationId);
+
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+shiftsRouter.get("/:id/eligible-staff", requireEditPerms, async (req: AuthedRequest, res, next) => {
+  try {
+    const { id: shiftId } = z.object({ id: z.string().min(1) }).parse(req.params);
+    const shift = await prisma.shift.findUnique({
+      where: { id: shiftId },
+      include: { location: true },
+    });
+
+    if (!shift) throw new ApiError({ status: 404, code: "NOT_FOUND", message: "Shift not found" });
+
+    // 1. Find all users certified at this location
+    const locationUsers = await prisma.userLocation.findMany({
+      where: { locationId: shift.locationId },
+      include: { user: { include: { skills: true } } }
+    });
+
+    const candidateUsers = locationUsers.map(ls => ls.user);
+    const { checkShiftConstraints } = await import("../services/scheduling");
+
+    const results = await Promise.all(candidateUsers.map(async (user) => {
+      const constraintResult = await checkShiftConstraints({ userId: user.id, shiftId });
+      return {
+        user: { id: user.id, name: user.name, email: user.email },
+        eligible: constraintResult.ok,
+        warnings: constraintResult.warnings,
+        hasRequiredSkill: user.skills.some(s => s.skillId === shift.requiredSkillId)
+      };
+    }));
+
+    res.json({ staff: results });
   } catch (err) {
     next(err);
   }
@@ -403,7 +450,7 @@ shiftsRouter.delete("/:id", requireEditPerms, async (req: AuthedRequest, res, ne
 
 shiftsRouter.get("/on-duty", requireEditPerms, async (req: AuthedRequest, res, next) => {
   try {
-    const { locationId } = z.object({ locationId: z.string() }).parse(req.query);
+    const { locationId } = z.object({ locationId: z.string().min(1) }).parse(req.query);
     if (req.auth!.role === "MANAGER") {
       await assertManagerHasLocationAccess({ managerUserId: req.auth!.userId, locationId });
     }

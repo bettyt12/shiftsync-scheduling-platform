@@ -49,3 +49,9 @@ export async function notifyManagers(args: {
         });
     }
 }
+
+export function broadcastScheduleUpdate(locationId: string) {
+    if (io) {
+        io.emit("schedule_update", { locationId });
+    }
+}
