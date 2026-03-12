@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocations } from '../hooks/useLocations';
-import { useShifts, usePublishShifts, useDeleteShift } from '../hooks/useShifts';
+import { useShifts, usePublishShifts, useDeleteShift, useClockIn, useClockOut } from '../hooks/useShifts';
 import Loader from '../components/Loader';
 import Badge from '../components/Badge';
 import { format, startOfWeek, endOfWeek, addDays, parseISO } from 'date-fns';
@@ -19,6 +19,8 @@ const Schedule = () => {
   // Mutations
   const publishMutation = usePublishShifts();
   const deleteMutation = useDeleteShift();
+  const clockInMutation = useClockIn();
+  const clockOutMutation = useClockOut();
 
   // Modal states
   const [isCoverageModalOpen, setIsCoverageModalOpen] = useState(false);
@@ -78,6 +80,22 @@ const Schedule = () => {
   // Helper to get days of the week
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
+  // find timezone for selected location for proper formatting
+  const selectedLocationObj = locations?.find(l => l.id === selectedLocation);
+  const locationTimezone = selectedLocationObj?.timezone;
+
+  const formatInTZ = (utcString) => {
+    const date = new Date(utcString);
+    if (locationTimezone) {
+      try {
+        return date.toLocaleTimeString(undefined, { timeZone: locationTimezone, hour: 'numeric', minute: '2-digit' });
+      } catch (e) {
+        // invalid timezone, let date-fns format
+      }
+    }
+    return format(date, 'p');
+  };
+
   if (loadingLocations) return <Loader className="mt-8" />;
 
   return (
@@ -131,8 +149,9 @@ const Schedule = () => {
                   <div className="no-shifts">Free</div>
                 ) : (
                   dayShifts.map(shift => {
-                    const isAssignedToMe = shift.assignments?.some(a => a.userId === user?.id);
-                    
+                    const myAssignment = shift.assignments?.find(a => a.userId === user?.id);
+                    const isAssignedToMe = !!myAssignment;
+
                     return (
                       <div 
                         key={shift.id} 
@@ -155,7 +174,8 @@ const Schedule = () => {
                           )}
                         </div>
                         <div className="shift-time">
-                          {format(parseISO(shift.startTimeUtc), 'p')} - {format(parseISO(shift.endTimeUtc), 'p')}
+                            {formatInTZ(shift.startTimeUtc)} - {formatInTZ(shift.endTimeUtc)}
+                            {locationTimezone && <span className="shift-tz"> ({locationTimezone})</span>}
                         </div>
                         <div className="shift-meta">
                           <span className="skill-label">{shift.requiredSkill?.name}</span>
@@ -170,12 +190,39 @@ const Schedule = () => {
                           </div>
                         </div>
                         {isAssignedToMe && (
-                          <button 
-                            className="btn-tiny"
-                            onClick={() => handleRequestCoverage(shift)}
-                          >
-                            Request Coverage
-                          </button>
+                          <>
+                            <button 
+                              className="btn-tiny"
+                              onClick={() => handleRequestCoverage(shift)}
+                            >
+                              Request Coverage
+                            </button>
+                            {/* clock controls for the assigned user */}
+                            {myAssignment && !myAssignment.clockInTimeUtc && (
+                              <button
+                                className="btn-tiny ml-2"
+                                onClick={() => clockInMutation.mutateAsync(shift.id)}
+                                disabled={clockInMutation.isLoading}
+                              >
+                                Clock In
+                              </button>
+                            )}
+                            {myAssignment && myAssignment.clockInTimeUtc && !myAssignment.clockOutTimeUtc && (
+                              <button
+                                className="btn-tiny ml-2"
+                                onClick={() => clockOutMutation.mutateAsync(shift.id)}
+                                disabled={clockOutMutation.isLoading}
+                              >
+                                Clock Out
+                              </button>
+                            )}
+                            {myAssignment && (
+                              <div className="clock-status text-xs text-muted mt-1">
+                                {myAssignment.clockInTimeUtc && `In: ${formatInTZ(myAssignment.clockInTimeUtc)}`}
+                                {myAssignment.clockOutTimeUtc && ` Out: ${formatInTZ(myAssignment.clockOutTimeUtc)}`}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );

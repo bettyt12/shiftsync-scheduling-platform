@@ -1,34 +1,46 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Modal from './Modal';
 import { useCreateCoverageRequest } from '../hooks/useCoverage';
+import { useUsers } from '../hooks/useUsers';
 import { format, parseISO } from 'date-fns';
 
 const schema = z.object({
   type: z.enum(['SWAP', 'DROP']),
-  reason: z.string().min(5, 'Please provide a reason (min 5 chars)'),
+  toUserId: z.string().optional(),
+  reason: z.string().optional(),
 });
 
 const CoverageRequestModal = ({ isOpen, onClose, shift }) => {
   const createMutation = useCreateCoverageRequest();
-  
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const { data: users } = useUsers();
+
+  const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
       type: 'DROP',
+      toUserId: '',
       reason: ''
     }
   });
+
+  const type = watch('type');
+
+  useEffect(() => {
+    // Clear swap target when switching back to DROP
+    if (type === 'DROP') {
+      setValue('toUserId', '');
+    }
+  }, [type, setValue]);
 
   const onSubmit = async (data) => {
     try {
       await createMutation.mutateAsync({
         shiftId: shift.id,
         type: data.type,
-        // reason is not currently in the backend schema but we might want it later
-        // or we can use it just for local UX
+        toUserId: data.type === 'SWAP' && data.toUserId ? data.toUserId : undefined,
       });
       alert('Coverage request submitted successfully!');
       reset();
@@ -52,20 +64,23 @@ const CoverageRequestModal = ({ isOpen, onClose, shift }) => {
           <label>Request Type</label>
           <select {...register('type')}>
             <option value="DROP">Drop Shift (Open to anyone)</option>
-            <option value="SWAP">Swap Shift (Coming soon...)</option>
+            <option value="SWAP">Swap Shift with specific coworker</option>
           </select>
           {errors.type && <span className="error-text">{errors.type.message}</span>}
         </div>
 
-        <div className="form-group">
-          <label>Reason for Request</label>
-          <textarea 
-            {...register('reason')} 
-            placeholder="e.g. Family emergency, feeling unwell..."
-            rows={3}
-          />
-          {errors.reason && <span className="error-text">{errors.reason.message}</span>}
-        </div>
+        {type === 'SWAP' && (
+          <div className="form-group">
+            <label>Select Coworker to Swap With</label>
+            <select {...register('toUserId')}>
+              <option value="">Choose coworker...</option>
+              {users?.filter(u => u.role === 'STAFF' && u.id !== shift.assignments?.[0]?.userId).map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            {errors.toUserId && <span className="error-text">{errors.toUserId.message}</span>}
+          </div>
+        )}
 
         <div className="form-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
