@@ -1,6 +1,58 @@
-# ShiftSync - Scheduling Platform (Backend)
+# ShiftSync - Scheduling Platform
 
-## Running the Application
+## Frontend
+
+### Running the Frontend
+1. Ensure the backend is running on port 3000 (default).
+
+2. Setup:
+```bash
+cd frontend
+npm install
+```
+
+3. Run:
+```bash
+npm run dev
+```
+
+The web app will be available at `http://localhost:5173` (default Vite port).
+
+## Using the Web App
+
+ShiftSync is a scheduling platform for restaurant staff management. Users can log in with the seeded accounts below (password: `dev-password` for all).
+
+### User Roles and Features
+
+#### Staff Users
+Staff members can:
+- **View Schedule**: See their assigned shifts on the Schedule page.
+- **Set Availability**: Manage their availability windows on the Availability page.
+- **Request Coverage**: Submit drop requests or swap requests on the Coverage page.
+- **View Notifications**: Check for shift updates, coverage requests, and other alerts on the Notifications page.
+- **Dashboard**: Overview of upcoming shifts and recent activity.
+
+#### Managers
+Managers have access to staff features plus:
+- **Manage Shifts**: Create, edit, and delete shifts on the Schedule page.
+- **Assign Staff**: Assign staff to shifts, respecting constraints like availability and labor rules.
+- **Staff Management**: View and manage staff details on the Staff Management page.
+- **Analytics**: View fairness metrics and scheduling analytics on the Analytics page.
+- **Coverage Requests**: Approve or deny coverage requests from staff.
+
+#### Admins
+Admins have full access including:
+- **Audit Logs**: View system audit logs on the Audit Logs page for compliance and monitoring.
+
+### Getting Started
+1. Open the web app in your browser.
+2. Log in using one of the seeded email addresses and password `dev-password`.
+3. Navigate through the app using the sidebar menu.
+4. For staff: Set your availability and view your schedule.
+5. For managers: Create shifts and assign staff.
+6. Use the Coverage page to handle shift swaps and drop requests.
+
+The app uses real-time notifications via Socket.io for instant updates on shift changes and coverage requests.
 ### 1. Pre-requisites
 - Node.js installed
 - Postgres database running
