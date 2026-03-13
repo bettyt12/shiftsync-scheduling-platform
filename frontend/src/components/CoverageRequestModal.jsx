@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Modal from './Modal';
 import { useCreateCoverageRequest } from '../hooks/useCoverage';
-import { useUsers } from '../hooks/useUsers';
+import { useCoworkers } from '../hooks/useUsers';
 import { format, parseISO } from 'date-fns';
 
 const schema = z.object({
@@ -16,7 +16,9 @@ const schema = z.object({
 
 const CoverageRequestModal = ({ isOpen, onClose, shift }) => {
   const createMutation = useCreateCoverageRequest();
-  const { data: users } = useUsers();
+  // Use coworkers for swap, pass shift.locationId
+  const locationId = shift?.locationId;
+  const { data: coworkers } = useCoworkers(locationId);
 
   const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm({
     resolver: zodResolver(schema),
@@ -75,7 +77,7 @@ const CoverageRequestModal = ({ isOpen, onClose, shift }) => {
             <label>Select Coworker to Swap With</label>
             <select {...register('toUserId')}>
               <option value="">Choose coworker...</option>
-              {users?.filter(u => u.role === 'STAFF' && u.id !== shift.assignments?.[0]?.userId).map(u => (
+              {coworkers?.map(u => (
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>

@@ -165,3 +165,39 @@ usersRouter.patch("/:id", requireAuth, requireRole(["ADMIN", "MANAGER"]), async 
         next(err);
     }
 });
+
+// Endpoint: Get staff coworkers for a specific location (for swaps)
+usersRouter.get("/coworkers", requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const userId = req.auth!.userId;
+        const role = req.auth!.role;
+        const locationId = req.query.locationId as string;
+
+        if (role !== "STAFF") {
+            return res.status(403).json({ error: "Only staff can access this endpoint." });
+        }
+        if (!locationId) {
+            return res.status(400).json({ error: "locationId is required." });
+        }
+
+        // Find staff assigned to this location, excluding self
+        const coworkers = await prisma.user.findMany({
+            where: {
+                role: "STAFF",
+                id: { not: userId },
+                locations: {
+                    some: { locationId }
+                }
+            },
+            orderBy: { name: "asc" },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+            }
+        });
+        res.json({ coworkers });
+    } catch (err) {
+        next(err);
+    }
+});

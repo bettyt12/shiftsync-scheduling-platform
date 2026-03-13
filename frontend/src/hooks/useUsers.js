@@ -23,3 +23,15 @@ export const useUpdateUser = () => {
     }
   });
 };
+
+export const useCoworkers = (locationId) => {
+  return useQuery({
+    queryKey: ['coworkers', locationId],
+    queryFn: async () => {
+      if (!locationId) return [];
+      const { data } = await api.get(`/users/coworkers?locationId=${locationId}`);
+      return data.coworkers;
+    },
+    enabled: !!locationId
+  });
+};
